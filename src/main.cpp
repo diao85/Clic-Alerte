@@ -269,7 +269,7 @@ void sendTelegramMessage(String msg, String chatid="") {
     // DEBUG
     
     msg =  date + "\t" + heure +"\t" + String(Nom_Bouton) + " - " +  msg;
-    bot.sendMessage(chatid, msg);
+
     if(bot.sendMessage(chatid, msg)){
         msg = "Alerte à " + chatid;
         addEvent(msg);
@@ -496,7 +496,7 @@ void loop() {
             /* ------------------- Récupération de l'historique stocké ------------------ */
             file2json();
             /* ------------------------ Démarrage du serveur Web ------------------------ */
-            server.begin();
+            if (MDNS.begin("esp8266")) { Serial.println("MDNS responder started"); }
 
             server.serveStatic("/", LittleFS, "/index.html");
             server.serveStatic("/histo.json", LittleFS, "/events.json");
@@ -512,8 +512,6 @@ void loop() {
             server.serveStatic("/bootstrap.min.js.map", LittleFS, "/bootstrap.min.js.map");
             server.serveStatic("/bootstrap.min.css.map", LittleFS, "/bootstrap.min.css.map");
             
-            if (MDNS.begin("esp8266")) { Serial.println("MDNS responder started"); }
-            
             server.on("/gettoken",gettoken);
             server.on("/getbtnnom",getbtnnom);
             server.on("/getNom_Admin",getNom_Admin);
@@ -526,14 +524,16 @@ void loop() {
             server.on("/sauvReferents", sauvereferent);
             server.on("/updateReferents", updatereferent);
 
+            server.begin();
+
             beepModeChange();
         } 
         //***************************************************************//
         //******************** Si pas 1ere connexion ********************//
         //***************************************************************// 
         else {    
+            // MDNS.update();
             server.handleClient();
-            MDNS.update();
             interrupteur.loop();
         }
 

@@ -1,3 +1,4 @@
+// Rescherche trouble execption
 #include <Arduino.h>
 #include <LittleFS.h>
 /* ------------------- Importation pour evenements bouton ------------------- */

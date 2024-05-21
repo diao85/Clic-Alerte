@@ -9,6 +9,9 @@
 #include <Button2.h>
 // ---- Importation pour les notes -------------------------------------------------------
 #include <pitches_fr.h>
+// ---- Importation pour gestion WIFI ----------------------------------------------------
+#include <WiFiManager.h>
+#include <ESP8266WiFi.h>
 
 //--------------------------------------------------------------------------------------//
 //                                                                                      //
@@ -30,7 +33,14 @@ const int btnModePin = D3;              // Pin Mode
 //                                                                                      //
 //--------------------------------------------------------------------------------------//
 
-bool modeNormal = false;
+bool modeNormal = true;
+bool portailActif = false; 
+// ---- Parametres propre au bouton ------------------------------------------------------
+char Bot_Token[70];
+char Nom_Admin[25];
+char Prenom_Admin[25];
+char Chat_Id[40];
+char Nom_Bouton[25];
 
 //--------------------------------------------------------------------------------------//
 //                                                                                      //
@@ -41,6 +51,8 @@ bool modeNormal = false;
 // ---- Declaration des switchs ----------------------------------------------------------
 Button2 btnAlarm;
 Button2 btnMode;
+// ---- Declaration WIFImanager ----------------------------------------------------------
+WiFiManager wifiManager;
 
 //--------------------------------------------------------------------------------------//
 //                                                                                      //
@@ -83,6 +95,66 @@ void btnAlarmPressed(Button2& btn) {
 }
 //  --------------------------------------------------------------------------------------
 
+//--------------------------------------------------------------------------------------//
+//                       Fonctions concernant la gestion du WIFI                        //
+//--------------------------------------------------------------------------------------//
+
+void saveConfigCallback() {
+    Serial.println("[CALLBACK] saveCallback fired");
+}
+
+void wifiSettings() {
+    // ---- Recuperation de la date ----------------------------------------------------------
+    //datenLesen();
+
+    // ---- Parametres personnalisés additionnels du portail ---------------------------------
+    WiFiManagerParameter custom_Bot_Token("Bot_Token", "Entrez ici votre Bot Token", Bot_Token, 70);
+    WiFiManagerParameter custom_Nom_Bouton("Nom_Bouton", "Entrez ici Le nom du bouton", Nom_Bouton, 25);
+    WiFiManagerParameter custom_Nom_Admin("Nom_Admin", "Entrez ici votre Nom", Nom_Admin, 25);
+    WiFiManagerParameter custom_Prenom_Admin("Prenom_Admin", "Entrez ici votre Prenom", Prenom_Admin, 25);
+    WiFiManagerParameter custom_Chat_Id("Chat_Id", "Entrez ici votre Chat Id", Chat_Id, 40);
+
+    // ---- Initialisation de WifiManager ----------------------------------------------------
+    wifiManager.setSaveConfigCallback(saveConfigCallback);                              // Sauvegarde des parametres si besoin
+    wifiManager.setBreakAfterConfig(true);
+    wifiManager.setCleanConnect(true);                                                  // Pour eviter conflit entre connexion Wifi et WifiManager
+    //wifiManager.setCountry("US");                                                       // Configuration pays connexion WIFI
+
+    // ---- Ajout parametres personnalises ---------------------------------------------------
+    wifiManager.addParameter(&custom_Bot_Token);
+    wifiManager.addParameter(&custom_Nom_Bouton);
+    wifiManager.addParameter(&custom_Nom_Admin);
+    wifiManager.addParameter(&custom_Prenom_Admin);
+    wifiManager.addParameter(&custom_Chat_Id);
+
+    //wifiManager.setTimeout(300);                                                        // Time out au bout de 5 minutes
+
+    wifiManager.setConfigPortalBlocking(false);
+    wifiManager.autoConnect("Bouton_d'alerte", "diao85100");
+
+    // if (!configWifiDispo && !wifiManager.autoConnect("Bouton_d'alerte", "diao85100")) {  
+    //     Serial.println("La connexion a échoué et le délai a expiré.");
+    //     delay(3000);
+    //     ESP.restart();
+    //     delay(1000);
+    // }
+
+    //La boîte aux lettres est maintenant en ligne
+    //Serial.println("Der Briefkasten ist online");
+
+// ---- Lecture des parametres -----------------------------------------------------------
+    // strncpy(Nom_Bouton, jsonDoc["Nom_Bouton"],25);
+    // strncpy(Bot_Token, jsonDoc["Bot_Token"],70);
+    // strncpy(Nom_Admin, jsonDoc["Nom_Admin"],25);
+    // strncpy(Prenom_Admin, jsonDoc["Prenom_Admin"],25);
+    // strncpy(Chat_Id, jsonDoc["Chat_Id"],40);
+
+
+    //enregistre les données mises à jour dans le système de fichiers
+    // datenSpeichern();
+}
+
+//  --------------------------------------------------------------------------------------
 
 //--------------------------------------------------------------------------------------//
 //                                                                                      //
@@ -91,6 +163,11 @@ void btnAlarmPressed(Button2& btn) {
 //--------------------------------------------------------------------------------------//
 
 void setup() {
+
+    WiFi.mode(WIFI_STA);
+    //wifiManager.resetSettings();
+    // ---- Initialisation du Serial ---------------------------------------------------------
+    Serial.begin(115200);
     
     // ---- Initialisation des entrees et sorties --------------------------------------------
     pinMode(LED_BUILTIN, OUTPUT);
@@ -124,13 +201,58 @@ void loop() {
     btnMode.loop();
 
     if (!modeNormal) {
+    // ---- Mode Entrainement ----------------------------------------------------------------
         digitalWrite (rLed, LOW);
         digitalWrite (gLed, HIGH);
         digitalWrite (bLed, LOW);
         btnAlarm.loop();
     } else {
-        digitalWrite (rLed, HIGH);
-        digitalWrite (gLed, LOW);
-        digitalWrite (bLed, LOW);
+    // ---- Mode Normal ----------------------------------------------------------------------
+        if (WiFi.status() == WL_CONNECTED) {
+        // ---- Cas ou le dispositif est CONNECTE ------------------------------------------------
+            digitalWrite (rLed, LOW);
+            digitalWrite (gLed, LOW);
+            digitalWrite (bLed, HIGH);
+            portailActif = false;
+            btnAlarm.loop();
+        } else {
+        // ---- Cas ou le dispositif est DECONNECTE ----------------------------------------------
+            if (portailActif == false) {
+            // ---- Si premiere detection non connectee ----------------------------------------------
+                digitalWrite (rLed, HIGH);
+                digitalWrite (gLed, LOW);
+                digitalWrite (bLed, LOW);
+                // wifiSettings();
+
+                // ---- Parametres personnalisés additionnels du portail ---------------------------------
+                WiFiManagerParameter custom_Bot_Token("Bot_Token", "Entrez ici votre Bot Token", Bot_Token, 70);
+                WiFiManagerParameter custom_Nom_Bouton("Nom_Bouton", "Entrez ici Le nom du bouton", Nom_Bouton, 25);
+                WiFiManagerParameter custom_Nom_Admin("Nom_Admin", "Entrez ici votre Nom", Nom_Admin, 25);
+                WiFiManagerParameter custom_Prenom_Admin("Prenom_Admin", "Entrez ici votre Prenom", Prenom_Admin, 25);
+                WiFiManagerParameter custom_Chat_Id("Chat_Id", "Entrez ici votre Chat Id", Chat_Id, 40);
+
+                // ---- Initialisation de WifiManager ----------------------------------------------------
+                wifiManager.setSaveConfigCallback(saveConfigCallback);                              // Sauvegarde des parametres si besoin
+                //wifiManager.setBreakAfterConfig(true);
+                //wifiManager.setCleanConnect(true);                                                  // Pour eviter conflit entre connexion Wifi et WifiManager
+                //wifiManager.setCountry("US");                                                       // Configuration pays connexion WIFI
+
+                // ---- Ajout parametres personnalises ---------------------------------------------------
+                wifiManager.addParameter(&custom_Bot_Token);
+                wifiManager.addParameter(&custom_Nom_Bouton);
+                wifiManager.addParameter(&custom_Nom_Admin);
+                wifiManager.addParameter(&custom_Prenom_Admin);
+                wifiManager.addParameter(&custom_Chat_Id);
+
+                //wifiManager.setTimeout(300);                                                        // Time out au bout de 5 minutes
+
+                wifiManager.setConfigPortalBlocking(false);
+                wifiManager.autoConnect("Bouton_d'alerte", "diao85100");
+                portailActif = true;
+
+            } else {
+                wifiManager.process();
+            }
+        }
     }
 }

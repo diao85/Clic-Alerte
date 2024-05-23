@@ -41,13 +41,13 @@ bool shouldSaveConfig = false;          // Flag sauve données
 bool connected = false;
 bool intPressed = false;       // Flag bouton activé
 int compteur = 0;
-bool trainingMode = false;
+bool trainingMode = true;
 bool portalRunning = false;
-char Bot_Token[100];                    // Telegram config
-char Nom_Admin[100];
-char Prenom_Admin[100];
-char Chat_Id[100];                      // Telegram config
-char Nom_Bouton[100];
+char Bot_Token[70];                    // Telegram config
+char Nom_Admin[25];
+char Prenom_Admin[25];
+char Chat_Id[40];                      // Telegram config
+char Nom_Bouton[25];
 int signalRSSI =0;                      // Force du signal WIFI
 String heure;
 String date;
@@ -73,10 +73,10 @@ Button2 switchbtn;
 muTimer timerNoWifiSound = muTimer();
 muTimer timerConnectBlink = muTimer();
 // Déclaration des parametres Telegram
-WiFiManagerParameter custom_Bot_Token("Bot_Token", "Entrez ici votre Bot Token", Bot_Token, 100);
-WiFiManagerParameter custom_Nom_Bouton("Nom_Bouton", "Entrez ici Le nom du bouton", Nom_Bouton, 100);
-WiFiManagerParameter custom_Nom_Admin("Nom_Admin", "Entrez ici votre Nom", Nom_Admin, 100);
-WiFiManagerParameter custom_Prenom_Admin("Prenom_Admin", "Entrez ici votre Prenom", Prenom_Admin, 100);
+WiFiManagerParameter custom_Bot_Token("Bot_Token", "Entrez ici votre Bot Token", Bot_Token, 70);
+WiFiManagerParameter custom_Nom_Bouton("Nom_Bouton", "Entrez ici Le nom du bouton", Nom_Bouton, 25);
+WiFiManagerParameter custom_Nom_Admin("Nom_Admin", "Entrez ici votre Nom", Nom_Admin, 25);
+WiFiManagerParameter custom_Prenom_Admin("Prenom_Admin", "Entrez ici votre Prenom", Prenom_Admin, 25);
 WiFiManagerParameter custom_Chat_Id("Chat_Id", "Entrez ici votre Chat Id", Chat_Id, 40);
 WiFiManager wm;
 
@@ -91,10 +91,10 @@ void readConfig() {
             JsonDocument jsonDoc;
             auto deserializeError = deserializeJson(jsonDoc, configFile);
             if (!deserializeError) {
-                strncpy(Nom_Bouton, jsonDoc["Nom_Bouton"],100);
-                strncpy(Bot_Token, jsonDoc["Bot_Token"],100);
-                strncpy(Nom_Admin, jsonDoc["Nom_Admin"],100);
-                strncpy(Prenom_Admin, jsonDoc["Prenom_Admin"],100);
+                strncpy(Nom_Bouton, jsonDoc["Nom_Bouton"],25);
+                strncpy(Bot_Token, jsonDoc["Bot_Token"],70);
+                strncpy(Nom_Admin, jsonDoc["Nom_Admin"],25);
+                strncpy(Prenom_Admin, jsonDoc["Prenom_Admin"],25);
                 strncpy(Chat_Id, jsonDoc["Chat_Id"],40);
                 bot.updateToken(Bot_Token);
             } else Serial.println("failed to load jsonDoc config");
@@ -108,10 +108,10 @@ void saveConfigCallback () {
     Serial.println("Should save config");
     shouldSaveConfig = true;
     /* - Lecture des parametres et Sauvegarde si besoin (shouldSaveConfig=true) - */
-    strncpy(Nom_Bouton, custom_Nom_Bouton.getValue(),100);
-    strncpy(Bot_Token, custom_Bot_Token.getValue(),100);
-    strncpy(Nom_Admin, custom_Nom_Admin.getValue(),100);
-    strncpy(Prenom_Admin, custom_Prenom_Admin.getValue(),100);
+    strncpy(Nom_Bouton, custom_Nom_Bouton.getValue(),25);
+    strncpy(Bot_Token, custom_Bot_Token.getValue(),70);
+    strncpy(Nom_Admin, custom_Nom_Admin.getValue(),25);
+    strncpy(Prenom_Admin, custom_Prenom_Admin.getValue(),25);
     strncpy(Chat_Id, custom_Chat_Id.getValue(),40);
     if (shouldSaveConfig) {
       String temp = "{\"Bot_Token\":\"" + String(Bot_Token) + "\",\"Chat_Id\":\"" + Chat_Id + "\",";
@@ -405,7 +405,7 @@ void setup() {
   WiFi.forceSleepWake();
   delay( 500 );
   // Initialisation du WIFI
-  WiFi.mode(WIFI_STA); // explicitly set mode, esp defaults to STA+AP 
+//   WiFi.mode(WIFI_STA); // explicitly set mode, esp defaults to STA+AP 
   // Initialisation du Serial
   Serial.begin(115200);
   while (!Serial); 
@@ -478,6 +478,8 @@ void loop() {
     //*********************** Etat connecté *************************//
     //***************************************************************//
     if (WiFi.status() == WL_CONNECTED) {
+            
+        wm.process();   
 
         digitalWrite(gLed, LOW);
         digitalWrite(bLed, LOW);
@@ -531,8 +533,9 @@ void loop() {
         //***************************************************************//
         //******************** Si pas 1ere connexion ********************//
         //***************************************************************// 
-        else {    
-            // MDNS.update();
+        else { 
+            wm.process();   
+            MDNS.update();
             server.handleClient();
             interrupteur.loop();
         }
@@ -552,14 +555,15 @@ void loop() {
         beepDeconnexion();
       }
 
-      if (portalRunning==false){
-        WiFi.mode(WIFI_STA);
+      if (portalRunning==false) {
+        // WiFi.mode(WIFI_STA);
         readConfig();
         portalRunning = true;
         wm.setConfigPortalBlocking(false);
         wm.autoConnect("Bouton_d'alerte", "diao85100");
       } else {
         wm.process();
+        delay(100);
       }
     }
   }

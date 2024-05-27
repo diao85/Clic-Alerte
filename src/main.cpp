@@ -19,8 +19,7 @@
 #include <time.h>
 // ---- Importation pour Telegram --------------------------------------------------------
 #include <ArduinoJson.h>
-#include <WiFiClientSecure.h>
-#include <UniversalTelegramBot.h>
+#include <FastBot.h>
 
 //--------------------------------------------------------------------------------------//
 //                                                                                      //
@@ -29,7 +28,7 @@
 //--------------------------------------------------------------------------------------//
 
 #define FPM_SLEEP_MAX_TIME 0xFFFFFFF
-const int historicSize = 10;            // Taille maximale de l'historique
+const int historicSize = 9;            // Taille maximale de l'historique
 const int rLed = D7;                    // Pin Led Rouge
 const int gLed = D6;                    // Pin Led Verte
 const int bLed = D8;                    // Pin Led Bleue
@@ -43,7 +42,7 @@ const int modePin = D3;                 // Pin Mode
 //                                                                                      //
 //--------------------------------------------------------------------------------------//
 
-bool trainingMode = true;
+bool trainingMode = false;
 bool shouldSaveConfig = false;          // Flag sauve données
 // bool connected = false;
 // bool intPressed = false;                // Flag bouton activé
@@ -68,10 +67,7 @@ String json = "[]";                     // Stockage des events au format String
 //--------------------------------------------------------------------------------------//
 
 // Déclaration pour Telegram
-X509List cert(TELEGRAM_CERTIFICATE_ROOT);
-WiFiClientSecure secured_client;
-// UniversalTelegramBot *bot;
-UniversalTelegramBot bot(Bot_Token, secured_client);
+FastBot bot(Bot_Token);
 
 // Déclaration pour récupération de la date
 time_t maintenant;
@@ -223,23 +219,24 @@ void file2json() {
 // Ajout évenement dans historique
 void addEvent(String event) {
     event = String(Nom_Bouton) + " - " + event;
-    // updateDateTime();
+    updateDateTime();
     int i = 0;
     int j = 0;
     int cnt = 0;
+
+    j = json.indexOf("}", 0);
+    i = j;
     // Comptage des enregistrements
     while(i!=-1) {
-        if (i==0) {
-            j = json.indexOf("'}'", i+1);
-            cnt++;
-        }
         i = json.indexOf("}", i+1);
         cnt++;
     }
+
     // Retrait du premier enregistrement si > historicSize
-    if (cnt>historicSize+1) {
+    if (cnt>historicSize) {
         json = "[" + json.substring(j+2);
     }
+
     // Ajout de la derniere alerte
     int li = json.length()-1;
     json.remove(li);
@@ -260,23 +257,18 @@ void addEvent(String event) {
 // Envoi d'un telegramme avec un message msg vers un interlocuteur précis
 void sendTelegramMessage(String msg, String chatid="") {
 
-    // DEBUG
-    Serial.print(chatid);
-    Serial.print("\t");
-    Serial.print(bot.getToken());
-    // DEBUG
-    
-    msg =  date + "\t" + heure +"\t" + String(Nom_Bouton) + " - " +  msg;
+    // msg =  date + "\t" + heure +"\t" + String(Nom_Bouton) + " - " +  msg;
+    msg =  date + " " + heure +" " + String(Nom_Bouton) + " - " +  msg;
 
-    if(bot.sendMessage(chatid, msg)){
-        msg = "Alerte à " + chatid;
-        addEvent(msg);
-        Serial.println(" OK");
-    } else {
-        msg = "Message non abouti à " + chatid;
-        addEvent(msg);
-        Serial.println(" PAS OK");
-    }
+    bot.setChatID(chatid);
+    // bot.setTextMode("FB_MARKDOWN");
+
+    const char* cstr = msg.c_str();
+    uint8_t reply = bot.sendMessage(cstr);
+    Serial.println(reply);
+
+    msg = "Alerte à " + chatid;
+    addEvent(msg);
 }
 
 void gettoken() {
@@ -317,7 +309,7 @@ void readConfig() {
                 strncpy(Nom_Admin, jsonDoc["Nom_Admin"],25);
                 strncpy(Prenom_Admin, jsonDoc["Prenom_Admin"],25);
                 strncpy(Chat_Id, jsonDoc["Chat_Id"],40);
-                bot.updateToken(Bot_Token);
+                bot.setToken(Bot_Token);
             } else Serial.println("failed to load jsonDoc config");
         }
         configFile.close();
@@ -462,6 +454,7 @@ void setup() {
     wm.setMenu(wm_menu);
     
     // bot = new UniversalTelegramBot(Bot_Token, secured_client);
+    // secured_client.setTrustAnchors(&cert);
     // bot = new UniversalTelegramBot("6777274968:AAERYNHUjUvQrmuhV2MkPSK-sZTBEt0ECeQ", secured_client);
 
 }
